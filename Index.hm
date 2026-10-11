@@ -1,0 +1,265 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#000000">
+<title>YOU ARE AN IDIOT!</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  font-family: Arial, sans-serif;
+}
+
+#stage {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+}
+
+.popup {
+  position: absolute;
+  width: min(230px, 65vw);
+  background: white;
+  color: black;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  box-shadow: 0 8px 25px #0009;
+  overflow: hidden;
+  transform: translate(-50%, -50%);
+  animation: appear .15s ease-out;
+}
+
+.titlebar {
+  height: 26px;
+  padding: 5px 8px;
+  background: #f0f0f0;
+  border-bottom: 1px solid #ddd;
+  color: #444;
+  font-size: 11px;
+}
+
+.content {
+  padding: 10px;
+  text-align: center;
+}
+
+.face {
+  width: 100%;
+  height: 100px;
+  object-fit: contain;
+  display: block;
+}
+
+.message {
+  font-weight: bold;
+  font-size: 15px;
+  margin-top: 7px;
+}
+
+@keyframes appear {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(.6); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+#controls {
+  position: fixed;
+  z-index: 999999;
+  bottom: max(12px, env(safe-area-inset-bottom));
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+  pointer-events: none;
+}
+
+button {
+  pointer-events: auto;
+  border: 1px solid #777;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: #fff;
+  color: #111;
+  font-size: 14px;
+  font-weight: bold;
+}
+
+#stop {
+  background: #333;
+  color: white;
+}
+
+</style>
+</head>
+
+<body>
+<div id="stage"></div>
+
+<div id="controls">
+  <button id="stop">停止・クリア</button>
+  <button id="restart">もう一度</button>
+</div>
+
+<script>
+const stage = document.getElementById("stage");
+const stopButton = document.getElementById("stop");
+const restartButton = document.getElementById("restart");
+
+let running = false;
+let spawnTimer = null;
+let moveTimer = null;
+let windows = [];
+let count = 0;
+
+const MAX_WINDOWS = 22;
+
+// GitHubに顔画像を face.png という名前で置いてください。
+// 画像がない場合は、黄色い顔を代わりに表示します。
+const FACE_IMAGE = "face.png";
+
+function createPopup() {
+  if (!running || windows.length >= MAX_WINDOWS) return;
+
+  const popup = document.createElement("div");
+  popup.className = "popup";
+
+  const title = document.createElement("div");
+  title.className = "titlebar";
+  title.textContent = "Message_" + (++count);
+
+  const content = document.createElement("div");
+  content.className = "content";
+
+  const face = document.createElement("img");
+  face.className = "face";
+  face.src = FACE_IMAGE;
+  face.alt = "smiley face";
+
+  face.onerror = function() {
+    const fallback = document.createElement("div");
+    fallback.textContent = "☺";
+    fallback.style.fontSize = "85px";
+    fallback.style.height = "100px";
+    face.replaceWith(fallback);
+  };
+
+  const message = document.createElement("div");
+  message.className = "message";
+  message.textContent = "YOU ARE AN IDIOT!";
+
+  content.append(face, message);
+  popup.append(title, content);
+  stage.appendChild(popup);
+
+  const width = Math.min(230, innerWidth * 0.65);
+  const height = 160;
+
+  const x = width / 2 + Math.random() *
+    Math.max(1, innerWidth - width);
+
+  const y = height / 2 + Math.random() *
+    Math.max(1, innerHeight - height);
+
+  const item = {
+    el: popup,
+    x, y,
+    vx: (Math.random() - 0.5) * 3,
+    vy: (Math.random() - 0.5) * 3
+  };
+
+  popup.style.left = x + "px";
+  popup.style.top = y + "px";
+  popup.style.zIndex = count;
+
+  windows.push(item);
+}
+
+function movePopups() {
+  if (!running) return;
+
+  windows.forEach((item, index) => {
+    const w = item.el.offsetWidth;
+    const h = item.el.offsetHeight;
+
+    item.x += item.vx;
+    item.y += item.vy;
+
+    if (item.x < w / 2 || item.x > innerWidth - w / 2) {
+      item.vx *= -1;
+    }
+
+    if (item.y < h / 2 || item.y > innerHeight - h / 2) {
+      item.vy *= -1;
+    }
+
+    item.x = Math.max(w / 2, Math.min(innerWidth - w / 2, item.x));
+    item.y = Math.max(h / 2, Math.min(innerHeight - h / 2, item.y));
+
+    item.el.style.left = item.x + "px";
+    item.el.style.top = item.y + "px";
+
+    // 前後関係を少しずつ変える
+    item.el.style.zIndex =
+      10 + ((index + Math.floor(Date.now() / 1800)) % windows.length);
+  });
+}
+
+function start() {
+  if (running) return;
+
+  running = true;
+
+  if (windows.length === 0) createPopup();
+
+  spawnTimer = setInterval(() => {
+    if (windows.length < MAX_WINDOWS) {
+      createPopup();
+    } else {
+      clearInterval(spawnTimer);
+    }
+  }, 450);
+
+  moveTimer = setInterval(movePopups, 30);
+}
+
+function stop() {
+  running = false;
+
+  clearInterval(spawnTimer);
+  clearInterval(moveTimer);
+
+  spawnTimer = null;
+  moveTimer = null;
+
+  windows.forEach(item => item.el.remove());
+  windows = [];
+}
+
+stopButton.addEventListener("click", stop);
+
+restartButton.addEventListener("click", () => {
+  stop();
+  start();
+});
+
+// ページを開いたら自動で開始
+start();
+
+// タブを離れたら演出を停止
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) stop();
+});
+</script>
+</body>
+</html>
